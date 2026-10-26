@@ -949,9 +949,6 @@ fun DataSourcesScreen(vm: AppViewModel) {
         }
         }
 
-        // Keep the final control clear of the app and system navigation bars on shorter phones.
-        item { Spacer(Modifier.height(96.dp)) }
-
     }
 
     // ah-delete (#616): strongly-worded confirm before purging the "apple-health" source. On confirm,
