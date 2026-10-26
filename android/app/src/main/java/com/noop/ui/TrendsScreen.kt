@@ -7,6 +7,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -92,6 +94,7 @@ import kotlin.math.roundToInt
 // give it the frosted-glass edge. Mirrors the liquid Today heroCard (LiquidTodayView / TodayScreen).
 private val LIQUID_HERO_RADIUS: Dp = 26.dp
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TrendsScreen(vm: AppViewModel) {
     // Reactive cache (oldest → newest) as the immediate backing.
@@ -214,18 +217,24 @@ fun TrendsScreen(vm: AppViewModel) {
                 modifier = Modifier.staggeredAppear(index = 2),
                 verticalArrangement = Arrangement.spacedBy(Metrics.space8),
             ) {
-                Row(
+                // A FlowRow, so the caption moves under the picker when the two do not fit side by side.
+                // In a Row the caption got the leftover width, about 42dp on a 360dp phone, and
+                // "TRAILING 90 DAYS" broke mid-word over four lines.
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalArrangement = Arrangement.spacedBy(Metrics.space8),
                 ) {
                     SegmentedPillControl(
                         items = TrendsRange.entries.toList(),
                         selection = range,
                         label = { it.label },
                         onSelect = { range = it },
+                        modifier = Modifier.align(Alignment.CenterVertically),
                     )
-                    Spacer(Modifier.weight(1f))
-                    TrendsRangeCaption(range = range, fullSubtitle = rangeSubtitle)
+                    Box(modifier = Modifier.align(Alignment.CenterVertically)) {
+                        TrendsRangeCaption(range = range, fullSubtitle = rangeSubtitle)
+                    }
                 }
                 Text(
                     recovery.caption,
@@ -1056,11 +1065,23 @@ private fun periodChange(values: List<Double>): Double? {
 private fun ChartFooter(items: List<Pair<String, String>>) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.space10)) {
         HorizontalDivider(color = Palette.hairline)
-        Row(modifier = Modifier.fillMaxWidth()) {
+        // A gap between the columns and a value that shrinks to fit. With neither, the Effort mean
+        // "48.6 / 100" filled its column on a 360dp phone and ran straight into the next value. Bottom
+        // alignment keeps the values on one line when a long label wraps.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Metrics.space8),
+            verticalAlignment = Alignment.Bottom,
+        ) {
             items.forEach { (label, value) ->
                 Column(modifier = Modifier.weight(1f)) {
                     Overline(label, color = Palette.textTertiary)
-                    Text(value, style = NoopType.bodyNumber, color = Palette.textPrimary)
+                    AutoSizeValue(
+                        value,
+                        style = NoopType.bodyNumber,
+                        color = Palette.textPrimary,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }

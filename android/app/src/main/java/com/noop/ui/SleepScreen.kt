@@ -12,6 +12,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Column
@@ -56,6 +59,7 @@ import com.noop.data.HrBucket
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -1039,10 +1043,19 @@ internal fun SleepMarkCard(onMark: (SleepMarkType) -> Unit) {
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
+                // The buttons take 12dp side padding, not Material's 24dp. At 24dp each half of the row
+                // on a 360dp phone kept about 82dp for the icon and label, so even "I'm awake" broke over
+                // two lines. A label that still wraps stays centred, and IntrinsicSize.Min with
+                // fillMaxHeight() keeps the two buttons the same height when only one label wraps.
+                val markPadding = PaddingValues(horizontal = Metrics.space12, vertical = Metrics.space8)
+                Row(
+                    modifier = Modifier.height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(Metrics.gap),
+                ) {
                     Button(
                         onClick = { onMark(SleepMarkType.BEDTIME) },
-                        modifier = Modifier.weight(1f).semantics { contentDescription = uiString(R.string.l10n_sleep_screen_log_going_to_sleep_6c2b519d) },
+                        modifier = Modifier.weight(1f).fillMaxHeight().semantics { contentDescription = uiString(R.string.l10n_sleep_screen_log_going_to_sleep_6c2b519d) },
+                        contentPadding = markPadding,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Palette.surfaceInset,
                             contentColor = Palette.textPrimary,
@@ -1050,11 +1063,16 @@ internal fun SleepMarkCard(onMark: (SleepMarkType) -> Unit) {
                     ) {
                         Icon(Icons.Filled.Bedtime, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(uiString(R.string.l10n_sleep_screen_going_to_sleep_9c6c63fd), style = NoopType.subhead)
+                        Text(
+                            uiString(R.string.l10n_sleep_screen_going_to_sleep_9c6c63fd),
+                            style = NoopType.subhead,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                     Button(
                         onClick = { onMark(SleepMarkType.WAKE) },
-                        modifier = Modifier.weight(1f).semantics { contentDescription = uiString(R.string.l10n_sleep_screen_log_waking_up_2f9c230e) },
+                        modifier = Modifier.weight(1f).fillMaxHeight().semantics { contentDescription = uiString(R.string.l10n_sleep_screen_log_waking_up_2f9c230e) },
+                        contentPadding = markPadding,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Palette.surfaceInset,
                             contentColor = Palette.textPrimary,
@@ -1062,7 +1080,11 @@ internal fun SleepMarkCard(onMark: (SleepMarkType) -> Unit) {
                     ) {
                         Icon(Icons.Filled.WbSunny, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(uiString(R.string.l10n_sleep_screen_i_m_awake_2caf0e7f), style = NoopType.subhead)
+                        Text(
+                            uiString(R.string.l10n_sleep_screen_i_m_awake_2caf0e7f),
+                            style = NoopType.subhead,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
             }

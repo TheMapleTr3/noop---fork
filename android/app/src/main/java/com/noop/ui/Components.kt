@@ -18,6 +18,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -63,6 +64,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -652,73 +654,109 @@ fun <T> SegmentedPillControl(
     accessibilityLabel: String? = null,
 ) {
     val outerShape = RoundedCornerShape(50)
-    val scrollsForLargeText = adaptsToAvailableWidth && LocalDensity.current.fontScale > 1f
+    val density = LocalDensity.current
+    val scrollsForLargeText = adaptsToAvailableWidth && density.fontScale > 1f
     val usesEqualWidth = adaptsToAvailableWidth && !scrollsForLargeText
     val rangeScrollState = rememberScrollState()
-    // The track is a fixed-height pill; the selected pill FILLS that height so its inset is EQUAL on
-    // every side (container padding 4, pill horizontal padding only). The old compact pill inside a
-    // taller row left more vertical margin than horizontal — it read as off-centre. Mirrors iOS's
-    // SegmentedPillControl refresh (segment height 36, pill fills it for an even inset).
-    Row(
-        modifier = modifier
-            .selectableGroup()
-            .then(if (accessibilityLabel != null) Modifier.semantics { contentDescription = accessibilityLabel } else Modifier)
-            .then(if (scrollsForLargeText) Modifier.horizontalScroll(rangeScrollState) else Modifier)
-            .then(if (usesEqualWidth) Modifier.fillMaxWidth() else Modifier)
-            .height(36.dp)
-            .clip(outerShape)
-            .background(Palette.surfaceInset)
-            .border(1.dp, Palette.hairline, outerShape)
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        items.forEach { item ->
-            val selected = item == selection
-            val itemEnabled = enabled(item)
-            // Selected segment is SELECTION CHROME → follows the accent: a gold gradient + gold-deep ink
-            // on dark; a flat blue accent + white ink on light (so light selection matches the blue
-            // chrome, not gold). Unselected stays clear with tertiary text; disabled dims further.
-            val pillShape = RoundedCornerShape(50)
-            val pillBg = if (selected) {
-                if (Palette.isLight) Modifier.background(Palette.accent, pillShape)
-                else Modifier.background(Brush.linearGradient(*Palette.goldGradient.toTypedArray()), pillShape)
-            } else {
-                Modifier
-            }
-            Box(
-                modifier = Modifier
-                    // Fill the track height so the pill's inset is equal top/bottom/left/right.
-                    .then(if (usesEqualWidth) Modifier.weight(1f) else Modifier)
-                    .fillMaxHeight()
-                    .clip(pillShape)
-                    .then(pillBg)
-                    .selectable(
-                        selected = selected,
-                        enabled = itemEnabled,
-                        role = Role.Tab,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { onSelect(item) },
+    // Intrinsic mode measures every label once, so the segment padding can step down when the labels do
+    // not fit at the shipped 12dp. Six labels in a card on a 360dp phone did not, and the row squeezed the
+    // last segment until its label broke over two lines ("1" above "h").
+    val textMeasurer = rememberTextMeasurer()
+    val labels = items.map(label)
+    val labelsWidthDp = remember(labels, density) {
+        with(density) {
+            labels.sumOf { textMeasurer.measure(it, NoopType.captionNumber, maxLines = 1).size.width }.toDp().value
+        }
+    }
+    // propagateMinConstraints keeps a caller's fillMaxWidth() or weight() on the track itself, as when the
+    // modifier sat on the Row directly.
+    BoxWithConstraints(modifier = modifier, propagateMinConstraints = true) {
+        val segmentPadding = when {
+            usesEqualWidth -> Metrics.space4
+            // The large-text path scrolls, so its width is not a limit to fit into.
+            adaptsToAvailableWidth || !constraints.hasBoundedWidth -> SEGMENT_PADDING_STEPS_DP.first().dp
+            else -> segmentPaddingThatFitsDp(labelsWidthDp, items.size, maxWidth.value).dp
+        }
+        // The track is a fixed-height pill; the selected pill FILLS that height so its inset is EQUAL on
+        // every side (container padding 4, pill horizontal padding only). The old compact pill inside a
+        // taller row left more vertical margin than horizontal — it read as off-centre. Mirrors iOS's
+        // SegmentedPillControl refresh (segment height 36, pill fills it for an even inset).
+        Row(
+            modifier = Modifier
+                .selectableGroup()
+                .then(if (accessibilityLabel != null) Modifier.semantics { contentDescription = accessibilityLabel } else Modifier)
+                .then(if (scrollsForLargeText) Modifier.horizontalScroll(rangeScrollState) else Modifier)
+                .then(if (usesEqualWidth) Modifier.fillMaxWidth() else Modifier)
+                .height(36.dp)
+                .clip(outerShape)
+                .background(Palette.surfaceInset)
+                .border(1.dp, Palette.hairline, outerShape)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            items.forEach { item ->
+                val selected = item == selection
+                val itemEnabled = enabled(item)
+                // Selected segment is SELECTION CHROME → follows the accent: a gold gradient + gold-deep ink
+                // on dark; a flat blue accent + white ink on light (so light selection matches the blue
+                // chrome, not gold). Unselected stays clear with tertiary text; disabled dims further.
+                val pillShape = RoundedCornerShape(50)
+                val pillBg = if (selected) {
+                    if (Palette.isLight) Modifier.background(Palette.accent, pillShape)
+                    else Modifier.background(Brush.linearGradient(*Palette.goldGradient.toTypedArray()), pillShape)
+                } else {
+                    Modifier
+                }
+                Box(
+                    modifier = Modifier
+                        // Fill the track height so the pill's inset is equal top/bottom/left/right.
+                        .then(if (usesEqualWidth) Modifier.weight(1f) else Modifier)
+                        .fillMaxHeight()
+                        .clip(pillShape)
+                        .then(pillBg)
+                        .selectable(
+                            selected = selected,
+                            enabled = itemEnabled,
+                            role = Role.Tab,
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onSelect(item) },
+                        )
+                        .padding(horizontal = segmentPadding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = label(item),
+                        style = NoopType.captionNumber,
+                        maxLines = if (adaptsToAvailableWidth) 1 else Int.MAX_VALUE,
+                        overflow = if (adaptsToAvailableWidth) TextOverflow.Ellipsis else TextOverflow.Clip,
+                        color = when {
+                            selected && Palette.isLight -> androidx.compose.ui.graphics.Color.White
+                            selected -> Palette.goldDeepText
+                            !itemEnabled -> Palette.textTertiary.copy(alpha = 0.45f)
+                            else -> Palette.textTertiary
+                        },
                     )
-                    .padding(horizontal = if (usesEqualWidth) Metrics.space4 else 12.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = label(item),
-                    style = NoopType.captionNumber,
-                    maxLines = if (adaptsToAvailableWidth) 1 else Int.MAX_VALUE,
-                    overflow = if (adaptsToAvailableWidth) TextOverflow.Ellipsis else TextOverflow.Clip,
-                    color = when {
-                        selected && Palette.isLight -> androidx.compose.ui.graphics.Color.White
-                        selected -> Palette.goldDeepText
-                        !itemEnabled -> Palette.textTertiary.copy(alpha = 0.45f)
-                        else -> Palette.textTertiary
-                    },
-                )
+                }
             }
         }
     }
+}
+
+/** The horizontal padding a segment tries, widest first. 12dp is the shipped padding. */
+internal val SEGMENT_PADDING_STEPS_DP = listOf(12f, 8f, 4f)
+
+/**
+ * The widest step of [SEGMENT_PADDING_STEPS_DP] at which [segments] labels, [labelsWidthDp] wide in total,
+ * fit on one line each in [availableDp], together with the track's 4dp inset and the 4dp gaps. When no
+ * step fits, the narrowest one is used. Pure, so the plain-JVM suite can pin it.
+ */
+internal fun segmentPaddingThatFitsDp(labelsWidthDp: Float, segments: Int, availableDp: Float): Float {
+    val chromeDp = 4f * 2 + 4f * (segments - 1).coerceAtLeast(0)
+    return SEGMENT_PADDING_STEPS_DP.firstOrNull { pad ->
+        labelsWidthDp + chromeDp + 2 * pad * segments <= availableDp
+    } ?: SEGMENT_PADDING_STEPS_DP.last()
 }
 
 // MARK: - BevelGauge (NEW) — the layered ring gauge primitive

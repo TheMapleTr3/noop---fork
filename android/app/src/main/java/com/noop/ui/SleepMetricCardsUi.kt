@@ -687,7 +687,14 @@ internal fun SleepChartCard(
 /** A footer strip of label/value pairs, evenly distributed. */
 @Composable
 private fun SleepChartFooter(items: List<Pair<String, String>>) {
-    Row(modifier = Modifier.fillMaxWidth()) {
+    // A gap between the columns so a label that fills its share cannot run into the next one
+    // ("PER-NIGHT NEEDNIGHTS"). Bottom alignment keeps the values on one line when a label wraps, as
+    // "PER-NIGHT NEED" does on a 360dp phone.
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(Metrics.space8),
+        verticalAlignment = Alignment.Bottom,
+    ) {
         items.forEach { (label, value) ->
             Column(modifier = Modifier.weight(1f)) {
                 Overline(label, color = Palette.textTertiary)

@@ -2631,15 +2631,17 @@ private fun LiquidTodayHeader(
                 .semantics { contentDescription = uiString(R.string.l10n_today_screen_daytitle_humandate_tap_to_pick_a_7e12ce96, dayTitle, humanDate) },
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(
+            // Shrinks to fit before it ellipsises. On a 360dp phone with the sync chip showing, the title
+            // gets about 110dp, and "Yesterday" or a weekday at 28sp needs more than that. fillMaxWidth()
+            // gives AutoSizeValue the hard width it needs to detect the overflow.
+            AutoSizeValue(
                 dayTitle,
                 // ~28sp Bold rounded, matching iOS `StrandFont.rounded(28)`. A soft shadow so it reads on the
                 // day-of-sky. NoopType.number is the house tabular sans; Bold at 28 is the display day title.
                 style = NoopType.number(28f, weight = FontWeight.Bold)
                     .copy(shadow = Shadow(color = Color.Black.copy(alpha = 0.4f), offset = Offset(0f, 1f), blurRadius = 10f)),
                 color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
             )
             Text(
                 humanDate,
@@ -3468,16 +3470,17 @@ private fun SynthesisHeroCard(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // The greeting yields/ellipsises first; the pill keeps its full width (#527).
+            // The greeting yields/ellipsises first; the pill keeps its full width (#527). It takes ALL the
+            // free width: a weighted Spacer beside it used to claim half, which cut "Good morning" to
+            // "Good mo…" on a 360dp phone while the empty half of the row sat unused.
             Text(
                 greetingWord(),
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(1f))
             // S4 (#205): the one-word readiness read kept on the hero now the full Readiness card folded
             // into the Charge-ring tap. Push / Maintain / Rest; hidden when there isn't enough history.
             // Tapping it opens the Charge breakdown, where the full Readiness card now lives.
